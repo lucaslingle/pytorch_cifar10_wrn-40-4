@@ -46,32 +46,24 @@ class Runner:
             "loss": test_loss
         }
 
-    def run(self, model, train_dataloader, test_dataloader, device, loss_fn):
+    def run(self, model, train_dataloader, test_dataloader, device, loss_fn, optimizer, scheduler):
 
-        epoch = 1
-
-        optimizer = tc.optim.SGD(model.parameters(), lr=0.1, momentum=0.9, dampening=0.0, weight_decay=0.0005, nesterov=True)
-        scheduler = tc.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[60, 120, 160], gamma=0.20)
-
-        for i in range(1, self.max_epochs+1):
+        for epoch in range(1, self.max_epochs+1):
             if self.verbose:
                 print(f"Epoch {epoch}\n-------------------------------")
 
-            model.train()  # turns batchnorm, dropout, etc. to train mode.
+            model.train()  # turn batchnorm, dropout, etc. to train mode.
             self.train_epoch(model, train_dataloader, optimizer, scheduler, device, loss_fn)
 
-            # after every epoch, print stats for train and test set. bad practice, should be validation set. fix later.
-            model.eval()  # this turns batchnorm, dropout, etc. to eval mode.
-            train_eval_dict = self.evaluate_epoch(model, train_dataloader, device, loss_fn)
-            train_accuracy = train_eval_dict['accuracy'] * 100
-            train_loss = train_eval_dict['loss']
-
+            # after every epoch, print stats for test set. should be validation set. fix later.
+            model.eval()  # turn batchnorm, dropout, etc. to eval mode.
             test_eval_dict = self.evaluate_epoch(model, test_dataloader, device, loss_fn)
             test_accuracy = test_eval_dict['accuracy'] * 100
             test_loss = test_eval_dict['loss']
             if self.verbose:
-                print(f"Train Error: \n Accuracy: {train_accuracy:>0.1f}%, Avg loss: {train_loss:>8f}")
-                print(f"Test Error: \n Accuracy: {test_accuracy:>0.1f}%, Avg loss: {test_loss:>8f}")
-                print("\n")
+                print(f"Test Error: \n Accuracy: {test_accuracy:>0.1f}%, Avg loss: {test_loss:>8f}\n")
 
-            epoch += 1
+            if epoch % 10 == 0:
+                tc.save(model.state_dict(), "model.pth")
+                tc.save(optimizer.state_dict(), "optimizer.pth")
+                tc.save(scheduler.state_dict(), "scheduler.pth")
