@@ -129,10 +129,29 @@ class InitialResNetConv(tc.nn.Module):
         return h
 
 
+class InitialPreactivationResNetConv(tc.nn.Module):
+    def __init__(self, img_channels, initial_num_filters):
+        super(InitialPreactivationResNetConv, self).__init__()
+        self.img_channels = img_channels
+        self.initial_num_filters = initial_num_filters
+
+        self.conv_sequence = tc.nn.Sequential(
+            tc.nn.Conv2d(self.img_channels, self.initial_num_filters, (3,3), stride=(1,1), padding=(1,1), bias=False)
+        )
+
+        for m in self.conv_sequence.modules():
+            if isinstance(m, tc.nn.Conv2d):
+                tc.nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='relu')
+
+    def forward(self, x):
+        h = self.conv_sequence(x)
+        return h
+
+
 class Cifar10ResNet(tc.nn.Module):
     # From section 4.2 of He et al., 2015 - 'Deep Residual Learning for Image Recognition'.
-    # This differs from the ImageNet resnets due to the initial convolution kernel size,
-    # as well as the number of feature maps, which start at 16 rather than 64.
+    # This differs from the ImageNet resnets due to (1) the initial convolution kernel size,
+    # (as well as the number of feature maps, which start at 16 rather than 64.
     def __init__(self, img_height, img_width, img_channels, initial_num_filters, num_classes, num_repeats, num_stages):
         super(Cifar10ResNet, self).__init__()
         self.img_height = img_height
@@ -207,7 +226,7 @@ class Cifar10PreactivationResNet(tc.nn.Module):
         self.num_repeats = num_repeats
         self.num_stages = num_stages
 
-        self.initial_conv = InitialResNetConv(img_channels, initial_num_filters)
+        self.initial_conv = InitialPreactivationResNetConv(img_channels, initial_num_filters)
         self.blocks = tc.nn.ModuleList()
 
         for s in range(self.num_stages):
@@ -225,10 +244,14 @@ class Cifar10PreactivationResNet(tc.nn.Module):
                     fout = self.initial_num_filters * (2 ** s)
                     self.blocks.append(PreactivationResBlock(fin, fout))
 
+        self.final_num_filters = self.initial_num_filters * (2 ** (self.num_stages - 1))
+
+        self.finalbn = tc.nn.BatchNorm2d(self.final_num_filters)
+        self.finalact = tc.nn.ReLU()
+        # ^ see https://github.com/KaimingHe/resnet-1k-layers/blob/master/resnet-pre-act.lua#L118-L119
+
         self.avgpool = GlobalAveragePool2d()
-        self.final_num_filters = self.initial_num_filters * (2 ** (self.num_stages-1))
         self.fc = tc.nn.Linear(self.final_num_filters, self.num_classes, bias=False)
-        #tc.nn.init.kaiming_normal(self.fc.weight)
         tc.nn.init.xavier_uniform_(self.fc.weight, gain=1.0)
         # ^ see https://github.com/szagoruyko/wide-residual-networks/issues/28#issuecomment-269477526
 
@@ -236,7 +259,8 @@ class Cifar10PreactivationResNet(tc.nn.Module):
         x = self.initial_conv(x)
         for l in range(self.num_stages * self.num_repeats):
             x = self.blocks[l](x)
-        spatial_features = x
+        x = self.finalbn(x)
+        spatial_features = self.finalact(x)
         pooled_features = self.avgpool(spatial_features)
         logits = self.fc(pooled_features)
         return logits
@@ -245,7 +269,9 @@ class Cifar10PreactivationResNet(tc.nn.Module):
         x = self.initial_conv(x)
         for l in range(self.num_stages * self.num_repeats):
             x = self.blocks[l](x)
-        spatial_features = x
+
+        x = self.finalbn(x)
+        spatial_features = self.finalact(x)
 
         target_shape = (-1, self.final_num_filters)
         spatial_features_batched = tc.reshape(spatial_features, target_shape)

@@ -1,11 +1,11 @@
 import torch as tc
 from datasets import CIFAR10ZagoruykoPreprocessing
-from classifier import Cifar10PreactivationResNet
+from classifier import Cifar10PreactivationResNet, Cifar10ResNet
 from runner import Runner
 import numpy as np
 import matplotlib.pyplot as plt
 
-# CIFAR-10 with preprocessing as described in Section 4.2 of He et al., 2015.
+# CIFAR-10 with preprocessing as described in Section 3 of Zagoruyko and Komodakis, 2016.
 training_data = CIFAR10ZagoruykoPreprocessing(root="data", train=True)
 test_data = CIFAR10ZagoruykoPreprocessing(root="data", train=False)
 
@@ -20,14 +20,14 @@ device = "cuda" if tc.cuda.is_available() else "cpu"
 print("Using {} device".format(device))
 
 # The WRN-40-4 model from Zagoruyko and Komodakis, applied to CIFAR-10.
-model = Cifar10PreactivationResNet(
-    img_height=32, img_width=32, img_channels=3,
-    initial_num_filters=16*4, num_stages=3, num_repeats=13, num_classes=10).to(device)
-
-# DEBUG:
 #model = Cifar10PreactivationResNet(
 #    img_height=32, img_width=32, img_channels=3,
-#    initial_num_filters=16, num_stages=3, num_repeats=3, num_classes=10).to(device)
+#    initial_num_filters=16*4, num_stages=3, num_repeats=13, num_classes=10).to(device)
+
+# DEBUG:
+model = Cifar10PreactivationResNet(
+    img_height=32, img_width=32, img_channels=3,
+    initial_num_filters=16, num_stages=3, num_repeats=3, num_classes=10).to(device)
 print(model)
 
 try:
@@ -38,10 +38,7 @@ except Exception:
 
 loss_fn = tc.nn.CrossEntropyLoss()
 
-# zago
 runner = Runner(max_epochs=200, verbose=True)
-# he
-#runner = Runner(max_epochs=160, verbose=True)
 
 runner.run(model, train_dataloader, test_dataloader, device, loss_fn)
 print("Done!")

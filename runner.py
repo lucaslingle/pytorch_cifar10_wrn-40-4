@@ -23,7 +23,7 @@ class Runner:
             # update global step
             self.global_step += 1
 
-            if self.verbose: # and self.global_step % 10 == 0:
+            if self.verbose and batch_idx % 100 == 0:
                 loss = loss.item()
                 print(f"loss: {loss:>7f}  [{batch_idx:>5d}/{len(train_dataloader):>5d}]")
 
@@ -49,12 +49,9 @@ class Runner:
     def run(self, model, train_dataloader, test_dataloader, device, loss_fn):
 
         epoch = 1
-        # zago
+
         optimizer = tc.optim.SGD(model.parameters(), lr=0.1, momentum=0.9, dampening=0.0, weight_decay=0.0005, nesterov=True)
         scheduler = tc.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[60, 120, 160], gamma=0.20)
-        # he
-        #optimizer = tc.optim.SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=0.0001)
-        #scheduler = tc.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[82, 123], gamma=0.10)
 
         for i in range(1, self.max_epochs+1):
             if self.verbose:
@@ -73,7 +70,8 @@ class Runner:
             test_accuracy = test_eval_dict['accuracy'] * 100
             test_loss = test_eval_dict['loss']
             if self.verbose:
-                print(f"Train Error: \n Accuracy: {train_accuracy:>0.1f}%, Avg loss: {train_loss:>8f} \n")
-                print(f"Test Error: \n Accuracy: {test_accuracy:>0.1f}%, Avg loss: {test_loss:>8f} \n")
+                print(f"Train Error: \n Accuracy: {train_accuracy:>0.1f}%, Avg loss: {train_loss:>8f}")
+                print(f"Test Error: \n Accuracy: {test_accuracy:>0.1f}%, Avg loss: {test_loss:>8f}")
+                print("\n")
 
             epoch += 1
