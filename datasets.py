@@ -4,7 +4,7 @@ import numpy as np
 
 
 class CIFAR10ZagoruykoPreprocessing(tc.utils.data.Dataset):
-    # CIFAR-10 with preprocessing as described in Section 4.2 of He et al., 2015.
+    # CIFAR-10 with preprocessing as described in Section 3 of Zagoruyko and Komodakis, 2016.
     def __init__(self, root, train):
         self.root = root
         self.train = train
